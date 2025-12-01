@@ -23,6 +23,6 @@ COPY --from=builder /usr/src/app/package*.json ./
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node --enable-source-maps dist/main.js"]
