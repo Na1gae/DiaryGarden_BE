@@ -86,10 +86,31 @@ export class DiaryService {
         // 날짜 처리: 제공된 날짜 또는 오늘
         const diaryDate = writtenDate ? new Date(writtenDate) : new Date();
         
+        // 해당 날짜의 시작과 끝 계산 (하루 범위)
+        const dayStart = new Date(diaryDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(diaryDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        // 같은 날짜에 이미 일기가 있는지 확인
+        const existingDiary = await this.prisma.diary.findFirst({
+            where: {
+                userId,
+                writtenDate: {
+                    gte: dayStart,
+                    lte: dayEnd,
+                },
+            },
+        });
+
+        if (existingDiary) {
+            throw new BadRequestException('이미 해당 날짜에 작성된 일기가 있습니다.');
+        }
+        
         // 해당 주의 트리 가져오기 (없으면 자동 생성)
         const treeId = await this.getOrCreateWeeklyTree(userId, diaryDate);
 
-        // Create diary first
+        // Create diary
         const diary = await this.prisma.diary.create({
             data: {
                 userId,
@@ -100,23 +121,13 @@ export class DiaryService {
             },
         });
 
-        // Analyze emotion asynchronously and update diary
-        try {
-            const emotionResult = await this.aiService.analyzeEmotion(content);
+        // Analyze emotion in background (don't await)
+        this.analyzeAndUpdateDiary(diary.id, content).catch(() => {
+            // 에러는 analyzeAndUpdateDiary 내부에서 처리
+        });
 
-            const updatedDiary = await this.prisma.diary.update({
-                where: { id: diary.id },
-                data: {
-                    emotionScores: emotionResult.emotionScores,
-                    dominantEmotion: emotionResult.dominantEmotion,
-                },
-            });
-
-            return this.toDiaryResponse(updatedDiary);
-        } catch (error) {
-            // Return diary even if AI analysis fails
-            return this.toDiaryResponse(diary);
-        }
+        // Return diary immediately without waiting for AI analysis
+        return this.toDiaryResponse(diary);
     }
 
     async getDiary(diaryId: string, userId?: string): Promise<DiaryResponseDto> {
@@ -184,5 +195,24 @@ export class DiaryService {
             emotionScores: diary.emotionScores as Record<string, number>,
             dominantEmotion: diary.dominantEmotion,
         };
+    }
+
+    /**
+     * 백그라운드에서 AI 감정 분석 후 일기 업데이트
+     */
+    private async analyzeAndUpdateDiary(diaryId: string, content: string): Promise<void> {
+        try {
+            const emotionResult = await this.aiService.analyzeEmotion(content);
+
+            await this.prisma.diary.update({
+                where: { id: diaryId },
+                data: {
+                    emotionScores: emotionResult.emotionScores,
+                    dominantEmotion: emotionResult.dominantEmotion,
+                },
+            });
+        } catch {
+            // AI 분석 실패 시 무시 (일기는 이미 저장됨)
+        }
     }
 }
