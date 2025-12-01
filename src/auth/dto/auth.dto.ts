@@ -35,7 +35,6 @@ export class RefreshTokenDto {
 export class AuthSessionDto {
     token: string;
     uid: string;
-    email: string;
     displayName: string;
     username: string;
     refreshToken?: string;

@@ -188,7 +188,6 @@ export class AuthService {
         return {
             token: accessToken,
             uid: user.uid,
-            email: user.username + '@diarygarden.app', // Placeholder since no email field
             displayName: user.displayName,
             username: user.username,
             ...(refreshToken && { refreshToken }),
