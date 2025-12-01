@@ -16,30 +16,87 @@ export class DiaryService {
         private aiService: AiService,
     ) { }
 
+    /**
+     * 주어진 날짜가 속한 주의 시작일(월요일)과 종료일(일요일)을 반환
+     */
+    private getWeekRange(date: Date): { weekStart: Date; weekEnd: Date } {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 월요일로 조정
+        
+        const weekStart = new Date(d.setDate(diff));
+        weekStart.setHours(0, 0, 0, 0);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        return { weekStart, weekEnd };
+    }
+
+    /**
+     * 주간 트리 이름 생성 (예: "2025년 12월 1주차")
+     */
+    private getWeeklyTreeName(date: Date): string {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const weekOfMonth = Math.ceil(date.getDate() / 7);
+        return `${year}년 ${month}월 ${weekOfMonth}주차`;
+    }
+
+    /**
+     * 해당 주의 트리를 찾거나 새로 생성
+     */
+    private async getOrCreateWeeklyTree(userId: string, date: Date): Promise<string> {
+        const { weekStart, weekEnd } = this.getWeekRange(date);
+        
+        // 해당 주에 생성된 트리 찾기
+        const existingTree = await this.prisma.tree.findFirst({
+            where: {
+                userId,
+                createdAt: {
+                    gte: weekStart,
+                    lte: weekEnd,
+                },
+            },
+        });
+
+        if (existingTree) {
+            return existingTree.id;
+        }
+
+        // 없으면 새 트리 생성
+        const treeName = this.getWeeklyTreeName(date);
+        const newTree = await this.prisma.tree.create({
+            data: {
+                userId,
+                name: treeName,
+            },
+        });
+
+        return newTree.id;
+    }
+
     async createDiary(
         userId: string,
         createDiaryDto: CreateDiaryDto,
     ): Promise<DiaryResponseDto> {
-        const { treeId, content } = createDiaryDto;
-
-        // Verify tree belongs to user
-        const tree = await this.prisma.tree.findFirst({
-            where: {
-                id: treeId,
-                userId,
-            },
-        });
-
-        if (!tree) {
-            throw new BadRequestException('해당 트리를 찾을 수 없거나 접근 권한이 없습니다.');
-        }
+        const { title, content, writtenDate } = createDiaryDto;
+        
+        // 날짜 처리: 제공된 날짜 또는 오늘
+        const diaryDate = writtenDate ? new Date(writtenDate) : new Date();
+        
+        // 해당 주의 트리 가져오기 (없으면 자동 생성)
+        const treeId = await this.getOrCreateWeeklyTree(userId, diaryDate);
 
         // Create diary first
         const diary = await this.prisma.diary.create({
             data: {
                 userId,
                 treeId,
+                title,
                 content,
+                writtenDate: diaryDate,
             },
         });
 
@@ -119,6 +176,7 @@ export class DiaryService {
             id: diary.id,
             userId: diary.userId,
             treeId: diary.treeId,
+            title: diary.title,
             content: diary.content,
             writtenDate: diary.writtenDate,
             createdAt: diary.createdAt,
