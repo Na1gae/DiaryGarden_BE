@@ -11,7 +11,6 @@ RUN npm install
 
 COPY . .
 
-RUN npx prisma generate
 RUN npm run build
 
 
@@ -26,6 +25,8 @@ COPY --from=builder /usr/src/app/package*.json ./
 
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/prisma ./prisma
+
+RUN npx prisma generate
 
 EXPOSE 3001
 
