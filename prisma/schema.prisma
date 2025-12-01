@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  uid          String         @unique @default(uuid())
+  username     String         @unique
+  password     String
+  displayName  String
+  nickname     String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  refreshTokens RefreshToken[]
+  trees         Tree[]
+  diaries       Diary[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Tree {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @default("My Diary Tree")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diaries Diary[]
+
+  @@map("trees")
+}
+
+model Diary {
+  id              String   @id @default(uuid())
+  userId          String
+  treeId          String
+  content         String   @db.Text
+  emotionScores   Json?
+  dominantEmotion String?
+  writtenDate     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tree Tree @relation(fields: [treeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, writtenDate])
+  @@map("diaries")
+}
