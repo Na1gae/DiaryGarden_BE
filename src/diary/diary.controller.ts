@@ -8,13 +8,16 @@ import {
     UseGuards,
     ParseIntPipe,
     DefaultValuePipe,
+    UseInterceptors,
 } from '@nestjs/common';
 import { DiaryService } from './diary.service';
 import { CreateDiaryDto } from './dto/create-diary.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { HttpCacheInterceptor } from '../common/interceptors/http-cache.interceptor';
 
 @Controller('api/diaries')
+@UseInterceptors(HttpCacheInterceptor)
 export class DiaryController {
     constructor(private readonly diaryService: DiaryService) { }
 
