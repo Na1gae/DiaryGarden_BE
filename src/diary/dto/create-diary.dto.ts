@@ -1,8 +1,9 @@
-import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsDateString, MaxLength } from 'class-validator';
 
 export class CreateDiaryDto {
     @IsString()
     @IsNotEmpty()
+    @MaxLength(15)
     title: string;
 
     @IsString()
