@@ -45,7 +45,9 @@ export class DiaryController {
         @Query('limit', new DefaultValuePipe(0), ParseIntPipe) limit: number,
         @Query('lastDocId') lastDocId?: string,
         @Query('updatedAfter') updatedAfter?: string,
+        @Query('writtenAfter') writtenAfter?: string,
+        @Query('writtenBefore') writtenBefore?: string,
     ) {
-        return this.diaryService.getDiaries(user.userId, limit, lastDocId, updatedAfter);
+        return this.diaryService.getDiaries(user.userId, limit, lastDocId, updatedAfter, writtenAfter, writtenBefore);
     }
 }

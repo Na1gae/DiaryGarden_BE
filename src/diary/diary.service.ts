@@ -152,6 +152,8 @@ export class DiaryService {
         limit: number = 0,
         lastDocId?: string,
         updatedAfter?: string,
+        writtenAfter?: string,
+        writtenBefore?: string,
     ): Promise<DiaryResponseDto[]> {
         const whereClause: any = { userId };
 
@@ -160,6 +162,19 @@ export class DiaryService {
             whereClause.updatedAt = {
                 gte: new Date(updatedAfter),
             };
+        }
+
+        // Add writtenDate range filter
+        if (writtenAfter || writtenBefore) {
+            whereClause.writtenDate = {
+                ...whereClause.writtenDate,
+            };
+            if (writtenAfter) {
+                whereClause.writtenDate.gte = new Date(writtenAfter);
+            }
+            if (writtenBefore) {
+                whereClause.writtenDate.lte = new Date(writtenBefore);
+            }
         }
 
         const queryOptions: any = {
