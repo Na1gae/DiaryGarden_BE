@@ -166,9 +166,9 @@ export class GardenService {
         positionY: updateDto.positionY,
       },
       create: {
-        userId,
+        user: { connect: { id: userId } },
         gardenLevel,
-        treeId,
+        tree: { connect: { id: treeId } },
         positionX: updateDto.positionX,
         positionY: updateDto.positionY,
       },

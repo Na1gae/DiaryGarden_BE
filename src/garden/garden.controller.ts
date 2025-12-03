@@ -2,7 +2,6 @@ import { Controller, Get, Put, Param, Body, UseGuards } from '@nestjs/common';
 import { GardenService } from './garden.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { User } from '@prisma/client';
 import { UpdateTreePositionDto } from './dto/update-tree-position.dto';
 
 @Controller('api/gardens')
@@ -13,13 +12,9 @@ export class GardenController {
   @Get(':gardenLevel/trees/positions')
   async getTreePositions(
     @Param('gardenLevel') gardenLevel: string,
-    @CurrentUser() user: User,
+    @CurrentUser() user: { userId: string },
   ) {
-    const positions = await this.gardenService.getTreePositions(user.id, gardenLevel);
-    return {
-      success: true,
-      data: positions,
-    };
+    return this.gardenService.getTreePositions(user.userId, gardenLevel);
   }
 
   @Put(':gardenLevel/trees/positions/:treeId')
@@ -27,17 +22,13 @@ export class GardenController {
     @Param('gardenLevel') gardenLevel: string,
     @Param('treeId') treeId: string,
     @Body() updateDto: UpdateTreePositionDto,
-    @CurrentUser() user: User,
+    @CurrentUser() user: { userId: string },
   ) {
-    const position = await this.gardenService.updateTreePosition(
-      user.id,
+    return this.gardenService.updateTreePosition(
+      user.userId,
       gardenLevel,
       treeId,
       updateDto,
     );
-    return {
-      success: true,
-      data: position,
-    };
   }
 }
