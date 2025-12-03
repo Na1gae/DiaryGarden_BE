@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AiModule } from './ai/ai.module';
 import { DiaryModule } from './diary/diary.module';
+import { GardenModule } from './garden/garden.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DiaryModule } from './diary/diary.module';
     AuthModule,
     AiModule,
     DiaryModule,
+    GardenModule,
   ],
   controllers: [AppController],
   providers: [AppService],
