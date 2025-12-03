@@ -168,6 +168,29 @@ export class AuthService {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
+        // Limit the number of refresh tokens per user (e.g., max 5)
+        const MAX_REFRESH_TOKENS = 5;
+        const tokenCount = await this.prisma.refreshToken.count({
+            where: { userId },
+        });
+
+        if (tokenCount >= MAX_REFRESH_TOKENS) {
+            const tokensToDelete = await this.prisma.refreshToken.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'asc' },
+                take: tokenCount - MAX_REFRESH_TOKENS + 1, // Delete oldest + space for new one
+                select: { id: true },
+            });
+
+            if (tokensToDelete.length > 0) {
+                await this.prisma.refreshToken.deleteMany({
+                    where: {
+                        id: { in: tokensToDelete.map((t) => t.id) },
+                    },
+                });
+            }
+        }
+
         // Store refresh token in database
         await this.prisma.refreshToken.create({
             data: {
