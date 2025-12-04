@@ -59,6 +59,36 @@ export class DiaryController {
         return this.diaryService.createDiary(user.userId, createDiaryDto);
     }
 
+    @Post(':id/analyze')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({
+        summary: '일기 감정 분석 재요청',
+        description: '특정 일기의 감정 분석을 다시 수행합니다.',
+    })
+    @ApiParam({
+        name: 'id',
+        description: '분석할 일기의 고유 ID',
+        example: 'diary_abc123',
+    })
+    @ApiResponse({
+        status: 200,
+        description: '감정 분석 요청 성공',
+        type: DiaryResponseDto,
+    })
+    @ApiNotFoundResponse({
+        description: '일기를 찾을 수 없음',
+    })
+    @ApiUnauthorizedResponse({
+        description: '인증 필요',
+    })
+    async reanalyzeDiary(
+        @Param('id') id: string,
+        @CurrentUser() user: { userId: string },
+    ) {
+        return this.diaryService.reanalyzeDiary(user.userId, id);
+    }
+
     @Get(':id')
     @ApiOperation({
         summary: '일기 상세 조회',

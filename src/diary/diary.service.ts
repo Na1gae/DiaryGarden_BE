@@ -3,6 +3,9 @@ import {
     NotFoundException,
     ForbiddenException,
     BadRequestException,
+    ConflictException,
+    OnModuleInit,
+    Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
@@ -11,6 +14,9 @@ import { DiaryResponseDto } from './dto/diary-response.dto';
 
 @Injectable()
 export class DiaryService {
+    private readonly logger = new Logger(DiaryService.name);
+    private readonly processingDiaryIds = new Set<string>();
+
     constructor(
         private prisma: PrismaService,
         private aiService: AiService,
@@ -126,13 +132,42 @@ export class DiaryService {
             },
         });
 
-        // Analyze emotion in background (don't await)
-        this.analyzeAndUpdateDiary(diary.id, content).catch(() => {
-            // 에러는 analyzeAndUpdateDiary 내부에서 처리
+        // Analyze emotion and update
+        await this.analyzeAndUpdateDiary(diary.id, content, title);
+
+        // Fetch updated diary to return with analysis results
+        const updatedDiary = await this.prisma.diary.findUnique({
+            where: { id: diary.id },
         });
 
-        // Return diary immediately without waiting for AI analysis
-        return this.toDiaryResponse(diary);
+        return this.toDiaryResponse(updatedDiary);
+    }
+
+    /**
+     * 일기 감정 분석 재요청
+     */
+    async reanalyzeDiary(userId: string, diaryId: string): Promise<DiaryResponseDto> {
+        const diary = await this.prisma.diary.findUnique({
+            where: { id: diaryId },
+        });
+
+        if (!diary) {
+            throw new NotFoundException('일기를 찾을 수 없습니다.');
+        }
+
+        if (diary.userId !== userId) {
+            throw new ForbiddenException('이 일기에 접근할 권한이 없습니다.');
+        }
+
+        // AI 분석 수행 및 업데이트
+        await this.analyzeAndUpdateDiary(diary.id, diary.content, diary.title);
+
+        // 업데이트된 일기 조회
+        const updatedDiary = await this.prisma.diary.findUnique({
+            where: { id: diaryId },
+        });
+
+        return this.toDiaryResponse(updatedDiary);
     }
 
     async getDiary(diaryId: string, userId?: string): Promise<DiaryResponseDto> {
@@ -214,25 +249,35 @@ export class DiaryService {
             updatedAt: diary.updatedAt,
             emotionScores: diary.emotionScores as Record<string, number>,
             dominantEmotion: diary.dominantEmotion,
+            aiComment: diary.aiComment,
         };
     }
 
     /**
      * 백그라운드에서 AI 감정 분석 후 일기 업데이트
      */
-    private async analyzeAndUpdateDiary(diaryId: string, content: string): Promise<void> {
+    private async analyzeAndUpdateDiary(diaryId: string, content: string, title?: string): Promise<void> {
+        if (this.processingDiaryIds.has(diaryId)) {
+            throw new ConflictException('이미 감정 분석이 진행 중입니다.');
+        }
+
+        this.processingDiaryIds.add(diaryId);
+
         try {
-            const emotionResult = await this.aiService.analyzeEmotion(content);
+            const emotionResult = await this.aiService.analyzeEmotion(content, title);
 
             await this.prisma.diary.update({
                 where: { id: diaryId },
                 data: {
                     emotionScores: emotionResult.emotionScores,
                     dominantEmotion: emotionResult.dominantEmotion,
+                    aiComment: emotionResult.aiComment,
                 },
             });
-        } catch {
-            // AI 분석 실패 시 무시 (일기는 이미 저장됨)
+        } catch (error) {
+            this.logger.error(`Failed to analyze diary ${diaryId}`, error);
+        } finally {
+            this.processingDiaryIds.delete(diaryId);
         }
     }
 }

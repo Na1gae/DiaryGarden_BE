@@ -3,13 +3,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDiaryDto {
     @ApiProperty({
-        description: '일기 제목 (최대 15자)',
+        description: '일기 제목 (최대 20자)',
         example: '오늘의 일기',
-        maxLength: 15,
+        maxLength: 20,
     })
     @IsString()
     @IsNotEmpty()
-    @MaxLength(15)
+    @MaxLength(20)
     title: string;
 
     @ApiProperty({

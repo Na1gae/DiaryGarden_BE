@@ -1,20 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EmotionScoresDto {
-    @ApiPropertyOptional({ description: '기쁨 점수', example: 0.75 })
-    joy?: number;
+    @ApiPropertyOptional({ description: '기쁨 점수', example: 0.25 })
+    happy?: number;
 
-    @ApiPropertyOptional({ description: '슬픔 점수', example: 0.1 })
-    sadness?: number;
+    @ApiPropertyOptional({ description: '슬픔 점수', example: 0.25 })
+    sad?: number;
 
-    @ApiPropertyOptional({ description: '분노 점수', example: 0.05 })
-    anger?: number;
+    @ApiPropertyOptional({ description: '화남 점수', example: 0.25 })
+    angry?: number;
 
-    @ApiPropertyOptional({ description: '두려움 점수', example: 0.05 })
-    fear?: number;
-
-    @ApiPropertyOptional({ description: '놀람 점수', example: 0.05 })
-    surprise?: number;
+    @ApiPropertyOptional({ description: '차분 점수', example: 0.25 })
+    calm?: number;
 }
 
 export class DiaryResponseDto {
@@ -74,10 +71,16 @@ export class DiaryResponseDto {
 
     @ApiPropertyOptional({
         description: '가장 높은 점수의 주요 감정',
-        example: 'joy',
-        enum: ['joy', 'sadness', 'anger', 'fear', 'surprise'],
+        example: 'happy',
+        enum: ['happy', 'sad', 'angry', 'calm', 'default'],
     })
     dominantEmotion?: string;
+
+    @ApiPropertyOptional({
+        description: 'AI 코멘트',
+        example: '오늘 하루 정말 고생 많으셨어요.',
+    })
+    aiComment?: string;
 }
 
 export class DiaryListResponseDto {
