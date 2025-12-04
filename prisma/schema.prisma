@@ -62,6 +62,7 @@ model Diary {
   content         String   @db.Text
   emotionScores   Json?
   dominantEmotion String?
+  aiComment       String?  @db.Text
   writtenDate     DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
