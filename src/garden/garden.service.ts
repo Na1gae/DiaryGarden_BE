@@ -24,18 +24,29 @@ export class GardenService {
       throw new BadRequestException('gardenLevel 형식이 올바르지 않습니다.');
     }
 
-    // 2. Find all trees that have diaries in this period
+    // 2. Find all trees that have diaries in this period OR have a position in this garden
     const trees = await this.prisma.tree.findMany({
       where: {
         userId,
-        diaries: {
-          some: {
-            writtenDate: {
-              gte: startDate,
-              lt: endDate,
+        OR: [
+          {
+            diaries: {
+              some: {
+                writtenDate: {
+                  gte: startDate,
+                  lt: endDate,
+                },
+              },
             },
           },
-        },
+          {
+            treePositions: {
+              some: {
+                gardenLevel,
+              },
+            },
+          },
+        ],
       },
       select: { id: true },
       orderBy: { id: 'asc' },
@@ -83,7 +94,7 @@ export class GardenService {
         
         result.push({
           gardenLevel: pos.gardenLevel,
-          treeId: pos.treeId,
+          treeId: pos.treeId.replace(`${userId}_`, ''),
           positionX: x,
           positionY: y,
           updatedAt: pos.updatedAt.toISOString(),
@@ -116,7 +127,7 @@ export class GardenService {
 
         result.push({
           gardenLevel,
-          treeId: tree.id,
+          treeId: tree.id.replace(`${userId}_`, ''),
           positionX,
           positionY,
           updatedAt: new Date().toISOString(),
@@ -141,13 +152,64 @@ export class GardenService {
       throw new BadRequestException('gardenLevel 형식이 올바르지 않습니다.');
     }
 
+    // Handle week_ ID format
+    let internalTreeId = treeId;
+    if (treeId.startsWith('week_')) {
+      const newFormatId = `${userId}_${treeId}`;
+      
+      // 1. Check if tree exists with new ID format
+      const treeWithNewId = await this.prisma.tree.findUnique({
+        where: { id: newFormatId },
+      });
+
+      if (treeWithNewId) {
+        internalTreeId = newFormatId;
+      } else {
+        // 2. If not, try finding by name (for legacy UUID trees)
+        const parts = treeId.split('_'); // ['week', '2025', '11', '5']
+        if (parts.length === 4) {
+          const name = `${parts[1]}년 ${parts[2]}월 ${parts[3]}주차`;
+          const legacyTree = await this.prisma.tree.findFirst({
+            where: {
+              userId,
+              name,
+            },
+          });
+
+          if (legacyTree) {
+            internalTreeId = legacyTree.id;
+          } else {
+            // 3. If neither exists, we will use the new format ID to create it
+            internalTreeId = newFormatId;
+          }
+        } else {
+            internalTreeId = newFormatId;
+        }
+      }
+    }
+
     // Check if tree exists and belongs to user
-    const tree = await this.prisma.tree.findFirst({
+    let tree = await this.prisma.tree.findFirst({
       where: {
-        id: treeId,
+        id: internalTreeId,
         userId,
       },
     });
+
+    // If tree not found but it's a week_ ID, create it
+    if (!tree && treeId.startsWith('week_')) {
+      const parts = treeId.split('_'); // ['week', '2025', '11', '5']
+      if (parts.length === 4) {
+        const name = `${parts[1]}년 ${parts[2]}월 ${parts[3]}주차`;
+        tree = await this.prisma.tree.create({
+          data: {
+            id: internalTreeId,
+            userId,
+            name,
+          },
+        });
+      }
+    }
 
     if (!tree) {
       throw new NotFoundException('Tree를 찾을 수 없습니다.');
@@ -158,7 +220,7 @@ export class GardenService {
         userId_gardenLevel_treeId: {
           userId,
           gardenLevel,
-          treeId,
+          treeId: internalTreeId,
         },
       },
       update: {
@@ -168,7 +230,7 @@ export class GardenService {
       create: {
         user: { connect: { id: userId } },
         gardenLevel,
-        tree: { connect: { id: treeId } },
+        tree: { connect: { id: internalTreeId } },
         positionX: updateDto.positionX,
         positionY: updateDto.positionY,
       },
@@ -176,7 +238,7 @@ export class GardenService {
 
     return {
       gardenLevel: position.gardenLevel,
-      treeId: position.treeId,
+      treeId: position.treeId.replace(`${userId}_`, ''),
       positionX: position.positionX.toNumber(),
       positionY: position.positionY.toNumber(),
       updatedAt: position.updatedAt.toISOString(),

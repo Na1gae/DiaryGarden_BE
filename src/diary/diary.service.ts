@@ -45,20 +45,24 @@ export class DiaryService {
     }
 
     /**
+     * 주간 트리 ID 생성 (예: "userId_week_2025_12_1")
+     */
+    private getWeeklyTreeId(userId: string, date: Date): string {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const weekOfMonth = Math.ceil(date.getDate() / 7);
+        return `${userId}_week_${year}_${month}_${weekOfMonth}`;
+    }
+
+    /**
      * 해당 주의 트리를 찾거나 새로 생성
      */
     private async getOrCreateWeeklyTree(userId: string, date: Date): Promise<string> {
-        const { weekStart, weekEnd } = this.getWeekRange(date);
+        const treeId = this.getWeeklyTreeId(userId, date);
         
-        // 해당 주에 생성된 트리 찾기
-        const existingTree = await this.prisma.tree.findFirst({
-            where: {
-                userId,
-                createdAt: {
-                    gte: weekStart,
-                    lte: weekEnd,
-                },
-            },
+        // ID로 트리 찾기
+        const existingTree = await this.prisma.tree.findUnique({
+            where: { id: treeId },
         });
 
         if (existingTree) {
@@ -69,6 +73,7 @@ export class DiaryService {
         const treeName = this.getWeeklyTreeName(date);
         const newTree = await this.prisma.tree.create({
             data: {
+                id: treeId,
                 userId,
                 name: treeName,
             },
@@ -201,7 +206,7 @@ export class DiaryService {
         return {
             id: diary.id,
             userId: diary.userId,
-            treeId: diary.treeId,
+            treeId: diary.treeId.replace(`${diary.userId}_`, ''),
             title: diary.title,
             content: diary.content,
             writtenDate: diary.writtenDate,
