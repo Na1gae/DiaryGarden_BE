@@ -20,3 +20,14 @@ Ensure the JSON is valid and does not contain any markdown formatting or additio
 Diary Title: {title}
 Diary Content: {content}
 `;
+
+export const DIARY_COMMENT_PROMPT = `
+Based on the following diary entry and its analyzed emotion, write a warm, empathetic, and supportive comment.
+The comment should be 2-3 sentences in Korean, acknowledging the writer's feelings and providing gentle encouragement or validation.
+
+Diary Title: {title}
+Diary Content: {content}
+Dominant Emotion: {dominantEmotion}
+
+Return ONLY the comment text in Korean, without any JSON formatting or additional explanation.
+`;
